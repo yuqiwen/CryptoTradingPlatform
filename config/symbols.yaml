@@ -1,0 +1,4 @@
+symbols:
+  BTC-USD:
+    price_tick_size: 0.01
+    quantity_lot_size: 0.0001

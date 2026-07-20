@@ -1,0 +1,15 @@
+app:
+  mode: paper
+  exchange: coinbase
+  symbol: BTC-USD
+
+strategy:
+  target_spread_ticks: 10
+  quote_size_lots: 1
+
+risk:
+  max_position_lots: 10
+  max_order_size_lots: 2
+  max_notional_ticks: 100000000
+  max_price_deviation_bps: 50
+  max_orders_per_second: 5

@@ -1,0 +1,23 @@
+# Build outputs
+build/
+out/
+
+# Visual Studio / CMake local state
+.vs/
+CMakeUserPresets.json
+
+# Local Codex/editor state
+.codex/
+.agents/
+
+# Compiled artifacts
+*.exe
+*.obj
+*.lib
+*.dll
+*.pdb
+*.ilk
+
+# OS files
+Thumbs.db
+.DS_Store
