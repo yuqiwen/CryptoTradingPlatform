@@ -72,3 +72,20 @@ target_link_libraries(trading_order_manager
         trading_project_options
         trading_common
 )
+
+add_library(trading_simulator STATIC
+    simulator/paper_execution_simulator.cpp
+)
+
+target_include_directories(trading_simulator
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/simulator
+)
+
+target_link_libraries(trading_simulator
+    PUBLIC
+        trading_project_options
+        trading_common
+        trading_order_book
+        trading_order_manager
+)
