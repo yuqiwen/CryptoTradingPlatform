@@ -75,6 +75,7 @@ target_link_libraries(trading_order_manager
 
 add_library(trading_simulator STATIC
     simulator/paper_execution_simulator.cpp
+    simulator/portfolio_account.cpp
 )
 
 target_include_directories(trading_simulator
