@@ -15,7 +15,8 @@ namespace order_manager {
             OrderStatus::Created,
             request.price_ticks,
             request.quantity_lots,
-            0
+            0,
+            request.post_only
         };
 
         orders_.emplace(order_id, order);

@@ -90,3 +90,24 @@ target_link_libraries(trading_simulator
         trading_order_book
         trading_order_manager
 )
+
+add_library(trading_pipeline STATIC
+    pipeline/paper_trading_engine.cpp
+)
+
+target_include_directories(trading_pipeline PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/pipeline
+    ${CMAKE_CURRENT_SOURCE_DIR}/market_data
+)
+
+target_link_libraries(trading_pipeline PUBLIC
+    trading_project_options
+    trading_common
+    trading_order_book
+    trading_strategy
+    trading_risk
+    trading_order_manager
+    trading_simulator
+)
+
+target_link_libraries(trading_app PRIVATE trading_pipeline)

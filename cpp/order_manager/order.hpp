@@ -19,6 +19,7 @@ namespace order_manager {
         PriceTicks price_ticks;
         QuantityLots quantity_lots;
         QuantityLots filled_quantity_lots;
+        bool post_only = false;
     };
 
 }  // namespace order_manager

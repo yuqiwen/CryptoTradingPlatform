@@ -17,7 +17,8 @@ order_book::OrderBook make_order_book() {
 order_manager::OrderRequest make_limit_request(
     Side side,
     PriceTicks price_ticks,
-    QuantityLots quantity_lots = 2) {
+    QuantityLots quantity_lots = 2,
+    bool post_only = false) {
     return order_manager::OrderRequest{
         "coinbase",
         "BTC-USD",
@@ -25,7 +26,7 @@ order_manager::OrderRequest make_limit_request(
         OrderType::Limit,
         price_ticks,
         quantity_lots,
-        true
+        post_only
     };
 }
 
@@ -109,6 +110,24 @@ TEST(PaperExecutionSimulatorTests, MarketableBuyLimitProducesOpenThenFilled) {
     ASSERT_TRUE(stored_order.has_value());
     EXPECT_EQ(stored_order->status, OrderStatus::Filled);
     EXPECT_EQ(stored_order->filled_quantity_lots, 2);
+}
+
+TEST(PaperExecutionSimulatorTests, MarketablePostOnlyLimitIsRejected) {
+    order_manager::OrderManager order_manager;
+    const simulator::PaperExecutionSimulator simulator;
+    const auto book = make_order_book();
+    const auto order = create_pending_order(
+        order_manager,
+        make_limit_request(Side::Buy, 50'010, 2, true));
+
+    const auto reports = simulator.submit_order(order, book);
+
+    ASSERT_EQ(reports.size(), 1);
+    EXPECT_EQ(reports[0].status, OrderStatus::Rejected);
+    EXPECT_EQ(reports[0].last_fill_quantity_lots, 0);
+    ASSERT_TRUE(order_manager.apply_execution_report(reports[0]));
+    EXPECT_EQ(order_manager.get_order(order.order_id)->status,
+              OrderStatus::Rejected);
 }
 
 TEST(PaperExecutionSimulatorTests, MarketableSellLimitFillsAtBestBid) {

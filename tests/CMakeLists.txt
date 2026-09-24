@@ -75,6 +75,15 @@ target_link_libraries(portfolio_account_tests PRIVATE
     trading_simulator
 )
 
+add_executable(paper_trading_engine_tests
+    paper_trading_engine_tests.cpp
+)
+
+target_link_libraries(paper_trading_engine_tests PRIVATE
+    GTest::gtest_main
+    trading_pipeline
+)
+
 include(GoogleTest)
 gtest_discover_tests(order_book_tests)
 gtest_discover_tests(order_status_transition_tests)
@@ -83,3 +92,4 @@ gtest_discover_tests(risk_engine_tests)
 gtest_discover_tests(order_manager_tests)
 gtest_discover_tests(paper_execution_simulator_tests)
 gtest_discover_tests(portfolio_account_tests)
+gtest_discover_tests(paper_trading_engine_tests)

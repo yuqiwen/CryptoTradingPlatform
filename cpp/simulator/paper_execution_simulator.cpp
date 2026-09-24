@@ -45,6 +45,17 @@ PaperExecutionSimulator::submit_order(
         return std::nullopt;
     }();
 
+    if (order.status == OrderStatus::PendingNew && order.post_only &&
+        (order.order_type == OrderType::Market || fill_price)) {
+        reports.push_back(make_report(
+            order,
+            OrderStatus::Rejected,
+            0,
+            0,
+            order.filled_quantity_lots));
+        return reports;
+    }
+
     if (!fill_price && order.order_type == OrderType::Market) {
         reports.push_back(make_report(
             order,
