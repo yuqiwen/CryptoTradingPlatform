@@ -56,7 +56,8 @@ std::optional<PriceTicks> OrderBook::mid_price_ticks() const {
         return std::nullopt;
     }
 
-    return (best_bid_level->price_ticks + best_ask_level->price_ticks) / 2;
+    return best_bid_level->price_ticks +
+        (best_ask_level->price_ticks - best_bid_level->price_ticks) / 2;
 }
 
 void OrderBook::apply_snapshot(const BookSnapshot& snapshot) {

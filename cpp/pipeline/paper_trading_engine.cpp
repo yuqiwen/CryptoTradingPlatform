@@ -20,18 +20,18 @@ PaperTradingEngine::PaperTradingEngine(
 EventResult PaperTradingEngine::on_market_data(
     const market_data::MarketDataEvent& event) {
     EventResult result;
-    if (event.exchange != exchange_ || event.symbol != symbol_ ||
-        event.bid_price_ticks <= 0 || event.ask_price_ticks <= 0 ||
-        event.bid_price_ticks >= event.ask_price_ticks ||
-        event.bid_size_lots <= 0 || event.ask_size_lots <= 0) {
+    if (event.exchange != exchange_ || event.symbol != symbol_) {
         return result;
     }
 
+    result.book_status = book_stream_.apply(event);
+    if (result.book_status != market_data::ApplyStatus::Applied) {
+        if (!book_stream_.synchronized()) {
+            cancel_active_orders(result);
+        }
+        return result;
+    }
     result.accepted = true;
-    order_book_.apply_snapshot(order_book::BookSnapshot{
-        {{event.bid_price_ticks, event.bid_size_lots}},
-        {{event.ask_price_ticks, event.ask_size_lots}}
-    });
 
     for (const OrderId order_id : active_order_ids_) {
         process_order(order_id, result);
@@ -41,8 +41,11 @@ EventResult PaperTradingEngine::on_market_data(
     const strategy::PositionView position_view{
         exchange_, symbol_, portfolio_.net_position_lots()
     };
-    const auto requests = strategy_.on_market_data(order_book_, position_view);
-    const PriceTicks reference_price_ticks = *order_book_.mid_price_ticks();
+    const auto requests = strategy_.on_market_data(book_stream_.book(), position_view);
+    const auto reference_price_ticks = book_stream_.book().mid_price_ticks();
+    if (!reference_price_ticks) {
+        return result;
+    }
 
     for (const auto& request : requests) {
         if (request.exchange != exchange_ || request.symbol != symbol_) {
@@ -57,7 +60,7 @@ EventResult PaperTradingEngine::on_market_data(
         const auto risk_result = risk_engine_.check_order(
             request,
             portfolio_.net_position_lots(),
-            reference_price_ticks,
+            *reference_price_ticks,
             event.local_recv_ts_ns);
         result.risk_decisions.push_back(RiskDecision{request, risk_result});
         if (!risk_result.approved) {
@@ -79,7 +82,7 @@ EventResult PaperTradingEngine::on_market_data(
 }
 
 const order_book::OrderBook& PaperTradingEngine::order_book() const {
-    return order_book_;
+    return book_stream_.book();
 }
 
 const order_manager::OrderManager& PaperTradingEngine::order_manager() const {
@@ -96,7 +99,7 @@ void PaperTradingEngine::process_order(OrderId order_id, EventResult& result) {
         throw std::logic_error("active order is missing from order manager");
     }
 
-    const auto reports = simulator_.submit_order(*order, order_book_);
+    const auto reports = simulator_.submit_order(*order, book_stream_.book());
     for (const auto& report : reports) {
         if (report.status == OrderStatus::PartiallyFilled ||
             report.status == OrderStatus::Filled) {
@@ -109,6 +112,27 @@ void PaperTradingEngine::process_order(OrderId order_id, EventResult& result) {
         }
         result.execution_reports.push_back(report);
     }
+}
+
+void PaperTradingEngine::cancel_active_orders(EventResult& result) {
+    for (const OrderId order_id : active_order_ids_) {
+        const auto order = order_manager_.get_order(order_id);
+        if (!order) {
+            throw std::logic_error("active order is missing from order manager");
+        }
+        if (!order_manager_.update_order_status(order_id, OrderStatus::PendingCancel)) {
+            throw std::logic_error("active order could not enter PendingCancel");
+        }
+        const order_manager::ExecutionReport report{
+            order_id, order->exchange, order->symbol, OrderStatus::Canceled,
+            0, 0, order->filled_quantity_lots
+        };
+        if (!order_manager_.apply_execution_report(report)) {
+            throw std::logic_error("order manager rejected paper cancel");
+        }
+        result.execution_reports.push_back(report);
+    }
+    active_order_ids_.clear();
 }
 
 void PaperTradingEngine::remove_terminal_orders() {

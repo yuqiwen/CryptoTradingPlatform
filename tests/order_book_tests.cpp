@@ -2,6 +2,8 @@
 
 #include "order_book.hpp"
 
+#include <limits>
+
 namespace {
 
 using order_book::BookSide;
@@ -121,6 +123,17 @@ TEST(OrderBookTest, SpreadAndMidPriceAreComputedCorrectly) {
     const auto mid = book.mid_price_ticks();
     ASSERT_TRUE(mid.has_value());
     EXPECT_EQ(*mid, 102);
+}
+
+TEST(OrderBookTest, MidPriceDoesNotOverflowAtLargeTicks) {
+    OrderBook book;
+    constexpr PriceTicks max_price = std::numeric_limits<PriceTicks>::max();
+    book.apply_snapshot(BookSnapshot{
+        {{max_price - 2, 1}}, {{max_price, 1}}
+    });
+
+    ASSERT_TRUE(book.mid_price_ticks());
+    EXPECT_EQ(*book.mid_price_ticks(), max_price - 1);
 }
 
 TEST(OrderBookTest, SpreadAndMidPriceReturnEmptyWhenBookIsIncomplete) {

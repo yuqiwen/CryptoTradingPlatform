@@ -27,6 +27,19 @@ target_include_directories(trading_order_book PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/order_book
 )
 
+add_library(trading_market_data STATIC
+    market_data/book_stream_processor.cpp
+)
+
+target_link_libraries(trading_market_data PUBLIC
+    trading_project_options
+    trading_order_book
+)
+
+target_include_directories(trading_market_data PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/market_data
+)
+
 add_library(trading_strategy STATIC
     strategy/market_making_strategy.cpp
 )
@@ -93,7 +106,10 @@ target_link_libraries(trading_simulator
 
 add_library(trading_pipeline STATIC
     pipeline/paper_trading_engine.cpp
+    pipeline/paper_trading_dispatcher.cpp
 )
+
+find_package(Threads REQUIRED)
 
 target_include_directories(trading_pipeline PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/pipeline
@@ -104,10 +120,12 @@ target_link_libraries(trading_pipeline PUBLIC
     trading_project_options
     trading_common
     trading_order_book
+    trading_market_data
     trading_strategy
     trading_risk
     trading_order_manager
     trading_simulator
+    Threads::Threads
 )
 
 target_link_libraries(trading_app PRIVATE trading_pipeline)

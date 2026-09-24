@@ -15,10 +15,22 @@ pipeline::PaperTradingEngine make_engine(QuantityLots max_order_size = 2) {
 
 market_data::MarketDataEvent make_event(
     PriceTicks bid = 49'990,
-    PriceTicks ask = 50'010) {
+    PriceTicks ask = 50'010,
+    std::uint64_t sequence = 1) {
     return market_data::MarketDataEvent{
-        "coinbase", "BTC-USD", bid, 5, ask, 5, 0, 1'000'000'000
+        "coinbase", "BTC-USD", sequence, 0, 1'000'000'000,
+        order_book::BookSnapshot{{{bid, 5}}, {{ask, 5}}}
     };
+}
+
+market_data::MarketDataEvent make_delta(std::uint64_t sequence) {
+    return {"coinbase", "BTC-USD", sequence, 0, 1'000'000'000,
+            std::vector<order_book::BookUpdate>{
+                {order_book::BookSide::Bid, 49'990, 0},
+                {order_book::BookSide::Ask, 50'010, 0},
+                {order_book::BookSide::Bid, 49'980, 5},
+                {order_book::BookSide::Ask, 49'985, 5}
+            }};
 }
 
 }  // namespace
@@ -47,7 +59,7 @@ TEST(PaperTradingEngineTests, RepeatedQuoteDoesNotCreateDuplicateOrders) {
     const auto first = engine.on_market_data(make_event());
     ASSERT_EQ(first.new_order_ids.size(), 2);
 
-    const auto second = engine.on_market_data(make_event());
+    const auto second = engine.on_market_data(make_event(49'990, 50'010, 2));
 
     EXPECT_TRUE(second.accepted);
     EXPECT_TRUE(second.new_order_ids.empty());
@@ -60,7 +72,7 @@ TEST(PaperTradingEngineTests, RestingBuyFillsOnNextEventAndUpdatesPortfolio) {
     const auto first = engine.on_market_data(make_event());
     ASSERT_EQ(first.new_order_ids.size(), 2);
 
-    const auto second = engine.on_market_data(make_event(49'980, 49'985));
+    const auto second = engine.on_market_data(make_delta(2));
 
     EXPECT_TRUE(second.accepted);
     EXPECT_EQ(engine.order_manager().get_order(first.new_order_ids[0])->status,
@@ -101,7 +113,29 @@ TEST(PaperTradingEngineTests, InvalidOrOtherMarketEventDoesNotMutateBook) {
     EXPECT_TRUE(engine.order_book().empty());
 
     event.symbol = "BTC-USD";
-    event.bid_price_ticks = event.ask_price_ticks;
+    event.payload = order_book::BookSnapshot{{{50'010, 5}}, {{50'010, 5}}};
     EXPECT_FALSE(engine.on_market_data(event).accepted);
     EXPECT_TRUE(engine.order_book().empty());
+}
+
+TEST(PaperTradingEngineTests, GapSkipsStrategyAndWaitsForSnapshot) {
+    auto engine = make_engine();
+    const auto first = engine.on_market_data(make_event());
+    ASSERT_TRUE(first.accepted);
+    ASSERT_EQ(first.new_order_ids.size(), 2);
+
+    const auto gap = engine.on_market_data(make_delta(3));
+    EXPECT_FALSE(gap.accepted);
+    EXPECT_EQ(gap.book_status, market_data::ApplyStatus::Gap);
+    EXPECT_TRUE(gap.new_order_ids.empty());
+    EXPECT_TRUE(engine.order_book().empty());
+    ASSERT_EQ(gap.execution_reports.size(), 2);
+    EXPECT_EQ(gap.execution_reports[0].status, OrderStatus::Canceled);
+    EXPECT_EQ(engine.order_manager().get_order(first.new_order_ids[0])->status,
+              OrderStatus::Canceled);
+
+    const auto recovered = engine.on_market_data(make_event(49'980, 49'985, 4));
+    EXPECT_TRUE(recovered.accepted);
+    EXPECT_EQ(engine.portfolio().net_position_lots(), 0);
+    EXPECT_EQ(recovered.new_order_ids.size(), 2);
 }

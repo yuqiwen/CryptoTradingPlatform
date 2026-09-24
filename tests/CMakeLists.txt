@@ -3,6 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -84,6 +85,24 @@ target_link_libraries(paper_trading_engine_tests PRIVATE
     trading_pipeline
 )
 
+add_executable(book_stream_processor_tests
+    book_stream_processor_tests.cpp
+)
+
+target_link_libraries(book_stream_processor_tests PRIVATE
+    GTest::gtest_main
+    trading_market_data
+)
+
+add_executable(paper_trading_dispatcher_tests
+    paper_trading_dispatcher_tests.cpp
+)
+
+target_link_libraries(paper_trading_dispatcher_tests PRIVATE
+    GTest::gtest_main
+    trading_pipeline
+)
+
 include(GoogleTest)
 gtest_discover_tests(order_book_tests)
 gtest_discover_tests(order_status_transition_tests)
@@ -93,3 +112,5 @@ gtest_discover_tests(order_manager_tests)
 gtest_discover_tests(paper_execution_simulator_tests)
 gtest_discover_tests(portfolio_account_tests)
 gtest_discover_tests(paper_trading_engine_tests)
+gtest_discover_tests(book_stream_processor_tests)
+gtest_discover_tests(paper_trading_dispatcher_tests)

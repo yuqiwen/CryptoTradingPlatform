@@ -1,23 +1,22 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
+#include <variant>
+#include <vector>
 
-#include "types.hpp"
+#include "order_book_types.hpp"
 
 namespace market_data {
 
 struct MarketDataEvent {
     std::string exchange;
     std::string symbol;
-
-    PriceTicks bid_price_ticks;
-    QuantityLots bid_size_lots;
-
-    PriceTicks ask_price_ticks;
-    QuantityLots ask_size_lots;
-
+    std::uint64_t sequence;
     TimestampNs exchange_ts_ns;
     TimestampNs local_recv_ts_ns;
+    std::variant<order_book::BookSnapshot,
+                 std::vector<order_book::BookUpdate>> payload;
 };
 
 }  // namespace market_data
